@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+<key>CFBundleDevelopmentRegion</key><string>en</string>
+<key>CFBundleDisplayName</key><string>Nubi</string>
+<key>CFBundleIconFile</key><string>AppIcon</string>
+<key>CFBundleExecutable</key><string>$(EXECUTABLE_NAME)</string>
+<key>CFBundleIdentifier</key><string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+<key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
+<key>CFBundleName</key><string>$(PRODUCT_NAME)</string>
+<key>CFBundlePackageType</key><string>APPL</string>
+<key>CFBundleShortVersionString</key><string>1.0.0</string>
+<key>CFBundleVersion</key><string>1</string>
+<key>LSMinimumSystemVersion</key><string>$(MACOSX_DEPLOYMENT_TARGET)</string>
+<key>NSAppleEventsUsageDescription</key><string>Nubi reads and controls playback in Apple Music, Spotify, and YouTube tabs in Chrome when automatic detection is enabled.</string>
+<key>NSCalendarsFullAccessUsageDescription</key><string>Nubi shows upcoming calendar events in Home and Calendar. It does not change events.</string>
+<key>NSAudioCaptureUsageDescription</key><string>Nubi routes audio from playing applications to let you control their volumes independently. Audio is processed in memory and never recorded.</string>
+<key>NSLocationUsageDescription</key><string>Nubi uses your location only to show current weather when you choose to enable it.</string>
+<key>NSLocationWhenInUseUsageDescription</key><string>Nubi uses your location only to show current weather when you choose to enable it.</string>
+<key>NSCameraUsageDescription</key><string>Nubi shows a temporary camera preview when you choose to open it. Video is not recorded or saved.</string>
+<key>NSMicrophoneUsageDescription</key><string>Nubi shows a temporary input level when you choose to open it. Audio is not recorded or saved.</string>
+<key>LSUIElement</key><true/>
+<key>NSHighResolutionCapable</key><true/>
+</dict></plist>

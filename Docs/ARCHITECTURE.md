@@ -1,0 +1,57 @@
+# Architecture
+
+## Ownership
+
+`NotchApp` connects SwiftUI's lifecycle to `AppDelegate`. The delegate owns the configuration, state controller, display manager, optional feature models, status item, panel manager, and reusable Settings window. All AppKit and observable UI work is isolated to the main actor. Swift 6 strict concurrency checking is enabled.
+
+`NotchWindowManager` owns one borderless, transparent, nonactivating `NSPanel`. The panel resizes to the current state rather than occupying the expanded rectangle while collapsed. It does not take key focus from the current application. Tracking is attached to its hosting view with an always-active `NSTrackingArea`; no global mouse event tap or Accessibility permission is needed. Only the panel's actual rectangular frame can intercept pointer input; the small transparent corner regions are inside that frame.
+
+AppKit animates the actual window frame with ease-in/ease-out; SwiftUI springs the content transition. Both respect Reduce Motion. The panel's upper edge remains fixed and its horizontal midpoint follows the selected screen. Deferred mouse reconciliation after a resize uses the actual pointer position and configured inset. Animation timing, delayed hover tasks, and view redraws do not require a permanent polling loop.
+
+`DisplayManager` enumerates current `NSScreen` objects by display ID. Screen parameter changes and Space changes trigger layout updates. `PanelGeometry` is a pure function using AppKit coordinates, so secondary displays may have negative or vertically offset origins. The selected missing display falls back to `NSScreen.screens.first`, the primary display, rather than the currently focused window's screen. With no screens the panel orders out.
+
+## Interaction state
+
+| Current state | Event | Result |
+| --- | --- | --- |
+| Collapsed | Pointer enters, expansion delay completes while still inside | Expanded |
+| Expanded | Pointer leaves, collapse delay completes while still outside | Collapsed |
+| Collapsed or expanded | Pin toggle | Pinned |
+| Pinned | Pointer leaves | Pinned |
+| Pinned | Unpin while inside | Expanded |
+| Pinned | Unpin while outside | Collapsed |
+| Any | Explicit collapse | Collapsed, hover reset |
+
+`InteractionState` implements the pure transitions. `NotchStateController` cancels the outstanding delay whenever hover direction changes or an explicit action occurs. It checks current hover state again when applying a delayed event. The UI and window manager observe the same source of truth.
+
+## Configuration and services
+
+`NotchConfiguration` persists a versioned Codable preference record in UserDefaults. Invalid stored dimensions/timings are clamped on load; corrupt or incompatible records fall back to defaults. Settings use bound controls and changes take effect immediately. Login state is queried from `SMAppService`, not inferred from a stored Boolean; registration errors and approval requirements are shown in Settings.
+
+`MusicModel` starts automatic detection at app launch by default. The preference persists separately in UserDefaults. It watches Music, Spotify, and Chrome process launches and terminations, and probes running sources every two seconds for playback state. No running player means no detection timer. Manual selection and Demo remain available when Auto is disabled. `PlayerBridge` serializes public Apple Events on a background actor, using the installed Music/Spotify scripting-dictionary codes and a three-second timeout per event. Events target a running process ID, so they cannot launch a player. Before the first event to a process, the bridge performs a noninteractive permission check with `AEDeterminePermissionToAutomateTarget`. When consent is required, the model starts a separate authorization task using the same public API with prompting enabled. A system consent dialog does not occupy the serial player-event executor, so other providers continue updating. Pending sources are excluded from probes, and Settings displays the approval request. Successful permission checks are cached by process ID and invalidated on permission/send errors. Generation tokens prevent a late consent response from changing a newer mode. The signed bundle includes the Automation entitlement and usage description. UI changes remain on the main actor. Permission denial suspends the denied provider until Retry detection; other running players remain eligible. Transient probe and metadata errors back off for fifteen seconds, allowing other providers to win subsequent scans. Retry detection clears the backoff immediately. Players that restart are automatically reconsidered.
+
+`YouTubeBridge` additionally inspects running Chrome tabs whose URLs are YouTube watch pages through Chrome's public AppleScript interface. It executes a fixed JavaScript probe on those pages to read the playing video, title, author, position, duration, and thumbnail; the user must enable Chrome's JavaScript from Apple Events setting. Browser errors appear in Settings. The bridge checks tab URLs but executes JavaScript only on YouTube watch pages and does not persist tab content. The Music panel reads the Apple Music scripting dictionary's `pLyr` property first. If lyrics are missing and the Music view is opened with online lookup enabled, `LRCLIBLyricsService` requests a match over HTTPS using title, artist, and duration. Lyrics stay in memory for the active track; track changes and shutdown cancel pending lookups. The collapsed pill and Live Activities route aggregate playing music, active focus, and running downloads independently.
+
+Snapshots read track title/artist, duration/position, playback state, and artwork. Music artwork is cached for the current track; Spotify artwork URLs are limited to HTTPS Spotify image CDN hosts and rendered asynchronously. Automatic mode selects a playing provider ahead of paused providers and retains the current provider when both play. It refreshes metadata on selection/state changes, process ID changes, and while expanded. A monotonic clock also triggers collapsed metadata refreshes after fifteen seconds, checked on the next detection cycle. Manual mode refreshes every five seconds while expanded and connected, with one request at a time. A one-second SwiftUI timeline interpolates progress only while visible and playing. Collapsing keeps lightweight automatic playback-state probes active and reduces full metadata refresh frequency; manual mode cancels refreshes; provider changes and shutdown invalidate pending responses using a generation token. Commands are disabled during a request. `PlayerService` and process lookup are injectable so tests exercise failure and cancellation without sending real Apple Events.
+
+`SystemInfoModel` uses public IOKit power-source notifications and only displays internal-battery data when present. The run-loop source is removed during app termination. Public Core Audio property listeners observe default-output changes, volume and mute. The model prefers master volume and falls back to stereo channels. Unsupported software volume is hidden; callbacks rebind to the current device, and shutdown removes listeners and prevents queued callbacks from registering again.
+
+`FileShelf` retains at most eight local URL references in memory. It rejects non-file and unavailable URLs, normalizes paths before deduplication, reports capacity overflow, and rechecks existence before Finder reveal. A rejected drop does not pin the panel. The native NSOpenPanel alternative supports multiple files and folders and uses the same validation; a successful selection pins the panel. Only one picker is retained at a time, and cancelling leaves the shelf unchanged. Removing or clearing entries only removes references. It has no persistent storage, uploads, or file deletion behavior. This personal-use build is not sandboxed; a future sandboxed version would require security-scoped access/bookmarks for persistent file handling.
+
+## Home and Calendar
+
+The expanded panel defaults to Home. `NotchView` renders configurable cards, route-specific content, and fixed-width navigation items so resizing does not shift their hit targets. Home card order and visibility are stored with backward-compatible preference decoding. `NotchWindowManager` chooses panel dimensions by route while preserving the top-center anchor and suppressing pointer transitions during frame animation. The panel becomes key-capable only after the user opens Launcher, To-do, or Calculator for text input; collapse restores its nonactivating behavior. Music uses a larger artwork and lyric preview, with an optional scrollable lyric view. `CalendarModel` owns a single EventKit store and requests full event access only from the Connect Calendar action. It reads up to six events in the next seven days, publishes the first three in the Calendar view and the next event on Home, and refreshes after store changes or app activation. It does not create, edit, persist, or log events. Authorization denial clears visible event data; model tests use an injected calendar service to verify this boundary without requesting system permission.
+
+## Mixer and local tools
+
+`SoundMixerModel` reads Core Audio devices, default input/output, writable volume controls, and running audio processes. Per-app mixing is off by default. On macOS 14.2 or later, enabling it creates a private process tap and aggregate output route for each eligible process on the selected output. The tap uses `mutedWhenTapped`; the aggregate IOProc passes 32-bit floating-point PCM through an in-memory gain stage to the output device. Unsupported formats, denied capture, absent callbacks, and device changes stop and destroy the route so macOS can resume ordinary output. Gains persist by application bundle ID; PCM buffers are never persisted. The UI exposes Retry after permission or routing failure. No third-party driver is installed.
+
+`LauncherModel` scans the standard application directories, deduplicates by bundle ID, and opens selected bundles through `NSWorkspace`. `TodoModel` stores a local JSON file with atomic writes in Application Support. `CalculatorEngine` keeps decimal arithmetic state inside the panel. These models have no cloud or network dependency.
+
+## Shutdown
+
+App termination cancels delayed state work, cancels panel reconciliation, removes notification observers and the battery notification source, and removes the menu-bar status item. Closing Settings leaves the utility running. Quit is always available from the status menu.
+
+## Focus timer
+
+`FocusTimerModel` owns idle/running/paused/finished state independently of music. Standard mode accepts preset or custom durations. Pomodoro advances manually through 25-minute focus, 5-minute short breaks, and a 15-minute long break after four completed focus sessions. A ContinuousClock deadline measures remaining time including sleep, avoiding drift from callback delays and wall-clock changes. One cancellable task refreshes the visible countdown once per second only while running. Pause preserves fractional seconds; reset, completion, and quit cancel the task. A new duration replaces the deadline. Completion remains in the notch until dismissed; no notification permission is requested. The timer is session-only and does not survive app termination. Tests inject a monotonic clock and also exercise the real scheduling task.
