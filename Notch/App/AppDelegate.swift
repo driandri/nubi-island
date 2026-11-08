@@ -57,6 +57,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let notifications = NotificationBannerModel()
     private let mixer = SoundMixerModel()
     private let launcher = LauncherModel()
+    private let developerWorkspace = DeveloperWorkspaceModel()
+    private let developerTerminal = DeveloperTerminalModel()
+    private let developerAgents = DeveloperAgentModel()
+    private let developerServices = DeveloperServiceModel()
     private let todos = TodoModel()
     private let weather = WeatherModel()
     private let water = WaterReminderModel()
@@ -108,6 +112,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self.updateMusicVisibility()
         }
         lockScreen.start()
+        developerAgents.start()
         music.startAutomaticDetection()
         lastVolume = system.volumePercent
         lastMuted = system.isMuted
@@ -271,6 +276,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                                              music: music, system: system, shelf: shelf, focus: focus, calendar: calendar,
                                              presentation: presentation, clipboard: clipboard, downloads: downloads,
                                              notifications: notifications, brightness: brightness, mixer: mixer, launcher: launcher,
+                                             developerWorkspace: developerWorkspace, developerTerminal: developerTerminal,
+                                             developerAgents: developerAgents, developerServices: developerServices,
                                              todos: todos, weather: weather, prayer: prayer, water: water, quickNotes: quickNotes,
                                              keepAwake: keepAwake, capturePreview: capturePreview, ambient: ambient,
                                              activity: activity, clock: clock, nobi: nobi,
@@ -416,6 +423,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         quickNotes.stop()
         keepAwake.stop()
         capturePreview.stop()
+        developerTerminal.stop()
+        developerAgents.stop()
         WindowSnapController.shared.stop()
         if let statusItem { NSStatusBar.system.removeStatusItem(statusItem) }
         onboardingWindow?.close()

@@ -143,6 +143,15 @@ struct PrayerTime: Equatable, Identifiable {
 }
 
 enum PrayerTimeParser {
+    static func sunrise(_ values: [String: String], day: String, timeZone: TimeZone) -> PrayerTime? {
+        guard let raw = values["Sunrise"] else { return nil }
+        let time = DateFormatter()
+        time.timeZone = timeZone; time.locale = Locale(identifier: "en_US_POSIX")
+        time.dateFormat = "dd-MM-yyyy HH:mm"
+        guard let date = time.date(from: "\(day) \(raw.prefix(5))") else { return nil }
+        return PrayerTime(name: "Terbit", date: date, displayTime: String(raw.prefix(5)))
+    }
+
     static func times(_ values: [String: String], day: String, timeZone: TimeZone) -> [PrayerTime] {
         let time = DateFormatter()
         time.timeZone = timeZone; time.locale = Locale(identifier: "en_US_POSIX")
@@ -158,6 +167,7 @@ enum PrayerTimeParser {
 @MainActor
 final class PrayerTimesModel: ObservableObject {
     @Published private(set) var times: [PrayerTime] = []
+    @Published private(set) var sunrise: PrayerTime?
     @Published private(set) var status = "Set a city or enable location in Weather settings"
     @Published private(set) var loading = false
     @Published private(set) var now = Date()
@@ -174,7 +184,7 @@ final class PrayerTimesModel: ObservableObject {
         weather.$resolvedLocation.removeDuplicates().sink { [weak self] location in
             Task { @MainActor [weak self] in
                 guard let self else { return }
-                if location != self.cachedLocation { self.times = []; self.cachedDay = nil }
+                if location != self.cachedLocation { self.times = []; self.sunrise = nil; self.cachedDay = nil }
                 self.refresh()
             }
         }.store(in: &subscriptions)
@@ -189,7 +199,7 @@ final class PrayerTimesModel: ObservableObject {
     var nextPrayer: PrayerTime? { times.first { $0.date > now } }
     func refresh(force: Bool = false) {
         guard let location = weather.resolvedLocation else {
-            request?.cancel(); times = []; status = "Set a city or enable location in Weather settings"; loading = false
+            request?.cancel(); times = []; sunrise = nil; status = "Set a city or enable location in Weather settings"; loading = false
             return
         }
         let zone = TimeZone(identifier: location.timeZoneID) ?? .current
@@ -204,12 +214,13 @@ final class PrayerTimesModel: ObservableObject {
             guard let self else { return }
             do {
                 var fetched = try await self.fetch(day: day, location: location, zone: zone)
-                if fetched.allSatisfy({ $0.date <= self.now }) {
+                if fetched.times.allSatisfy({ $0.date <= self.now }) {
                     let tomorrow = Calendar(identifier: .gregorian).date(byAdding: .day, value: 1, to: self.now) ?? self.now.addingTimeInterval(86_400)
                     fetched = try await self.fetch(day: formatter.string(from: tomorrow), location: location, zone: zone)
                 }
                 guard !Task.isCancelled else { return }
-                self.times = fetched
+                self.times = fetched.times
+                self.sunrise = fetched.sunrise
                 self.cachedDay = day; self.cachedLocation = location
                 self.status = "AlAdhan · Kemenag calculation (method 20)"
                 self.loading = false
@@ -220,7 +231,7 @@ final class PrayerTimesModel: ObservableObject {
             }
         }
     }
-    private func fetch(day: String, location: WeatherLocation, zone: TimeZone) async throws -> [PrayerTime] {
+    private func fetch(day: String, location: WeatherLocation, zone: TimeZone) async throws -> (times: [PrayerTime], sunrise: PrayerTime?) {
         var components = URLComponents(string: "https://api.aladhan.com/v1/timings/\(day)")!
         components.queryItems = [URLQueryItem(name: "latitude", value: String(location.latitude)),
                                  URLQueryItem(name: "longitude", value: String(location.longitude)),
@@ -228,10 +239,10 @@ final class PrayerTimesModel: ObservableObject {
         let (data, response) = try await session.data(from: components.url!)
         guard (response as? HTTPURLResponse)?.statusCode == 200 else { throw WeatherError.cityNotFound }
         let payload = try JSONDecoder().decode(PrayerAPIResponse.self, from: data)
-        let parsed = PrayerTimeParser.times(payload.data.timings, day: day,
-                                            timeZone: TimeZone(identifier: payload.data.meta.timezone) ?? zone)
+        let responseZone = TimeZone(identifier: payload.data.meta.timezone) ?? zone
+        let parsed = PrayerTimeParser.times(payload.data.timings, day: day, timeZone: responseZone)
         guard parsed.count == 5 else { throw WeatherError.cityNotFound }
-        return parsed
+        return (parsed, PrayerTimeParser.sunrise(payload.data.timings, day: day, timeZone: responseZone))
     }
     func stop() { request?.cancel(); timer?.invalidate(); timer = nil; subscriptions.removeAll() }
 }

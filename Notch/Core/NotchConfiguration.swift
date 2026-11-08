@@ -109,7 +109,7 @@ struct NotchPreferences: Codable, Equatable {
         if ![5, 10, 30].contains(prayerReminderMinutes) { prayerReminderMinutes = 10 }
         excludedApps = Array(Set(excludedApps.filter { !$0.isEmpty })).sorted()
         if !["", "control-option-space", "control-option-n", "control-shift-space"].contains(openShortcut) { openShortcut = "" }
-        let valid = ["Calendar", "Music", "Timer", "Mixer", "To-do", "Launcher", "Calculator", "Downloads", "Agenda", "Clipboard", "Shelf", "System", "Weather", "Prayer", "Water", "Battery", "Quick Notes", "Keep Awake", "Quick Actions", "Camera & Mic"]
+        let valid = ["Calendar", "Music", "Timer", "Mixer", "To-do", "Launcher", "Developer", "Calculator", "Downloads", "Agenda", "Clipboard", "Shelf", "System", "Weather", "Prayer", "Water", "Battery", "Quick Notes", "Keep Awake", "Quick Actions", "Camera & Mic"]
         var seen = Set<String>()
         homeWidgets = homeWidgets.filter { valid.contains($0) && seen.insert($0).inserted }
         seen.removeAll()

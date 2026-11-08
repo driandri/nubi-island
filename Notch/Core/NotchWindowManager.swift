@@ -228,7 +228,10 @@ final class NotchWindowManager {
          music: MusicModel, system: SystemInfoModel, shelf: FileShelf, focus: FocusTimerModel, calendar: CalendarModel,
          presentation: IslandPresentationModel, clipboard: ClipboardHistoryModel, downloads: DownloadManager,
          notifications: NotificationBannerModel, brightness: BrightnessModel,
-         mixer: SoundMixerModel, launcher: LauncherModel, todos: TodoModel, weather: WeatherModel,
+         mixer: SoundMixerModel, launcher: LauncherModel, developerWorkspace: DeveloperWorkspaceModel,
+         developerTerminal: DeveloperTerminalModel, developerAgents: DeveloperAgentModel,
+         developerServices: DeveloperServiceModel,
+         todos: TodoModel, weather: WeatherModel,
          prayer: PrayerTimesModel, water: WaterReminderModel, quickNotes: QuickNoteModel, keepAwake: KeepAwakeModel, capturePreview: CapturePreviewModel,
          ambient: IdleAnimationModel, activity: ActivityCoordinator, clock: IslandClockModel, nobi: NobiBlinkModel,
          openSettings: @escaping (String?) -> Void, requestDownload: @escaping (URL?) -> Void) {
@@ -266,7 +269,10 @@ final class NotchWindowManager {
         let host = TrackingHostingView(rootView: NotchView(state: state, configuration: configuration, music: music,
                                                           system: system, shelf: shelf, focus: focus, calendar: calendar, presentation: presentation,
                                                           clipboard: clipboard, downloads: downloads, notifications: notifications,
-                                                          brightness: brightness, mixer: mixer, launcher: launcher, todos: todos, weather: weather,
+                                                          brightness: brightness, mixer: mixer, launcher: launcher,
+                                                          developerWorkspace: developerWorkspace, developerTerminal: developerTerminal,
+                                                          developerAgents: developerAgents, developerServices: developerServices,
+                                                          todos: todos, weather: weather,
                                                           prayer: prayer, water: water, quickNotes: quickNotes, keepAwake: keepAwake, capturePreview: capturePreview, ambient: ambient, activity: activity, clock: clock, nobi: nobi, dropZone: dropZone,
                                                           openSettings: openSettings, requestDownload: requestDownload,
                                                           dropTargetChanged: { [weak self] targeted in
@@ -597,6 +603,8 @@ final class NotchWindowManager {
             case .focus: size = CGSize(width: 430, height: focusPhase == .idle ? 315 : 220)
             case .mixer: size = CGSize(width: 540, height: 480)
             case .launcher: size = CGSize(width: 460, height: 380)
+            case .developer: size = CGSize(width: 650, height: 440)
+            case .terminal: size = CGSize(width: 720, height: 500)
             case .todos: size = CGSize(width: 460, height: 350)
             case .calculator: size = CGSize(width: 390, height: 390)
             case .more: size = CGSize(width: 530, height: 465)
@@ -606,7 +614,7 @@ final class NotchWindowManager {
             case .downloads: size = CGSize(width: 440, height: downloadCount == 0 ? 185 : 175 + min(2, downloadCount) * 38)
             case .clipboard: size = CGSize(width: 460, height: 240 + min(7, clipboardCount) * 30)
             case .shelf: size = CGSize(width: 440, height: 220 + (shelfHasFiles ? 100 : 0) + (shelfHasError ? 22 : 0))
-            case .prayer: size = CGSize(width: 560, height: 290)
+            case .prayer: size = CGSize(width: 560, height: 475)
             case .water: size = CGSize(width: 540, height: water.showingSettings ? 395 : 312)
             case .notes: size = CGSize(width: 460, height: 330)
             case .battery: size = CGSize(width: 420, height: 245)

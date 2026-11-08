@@ -18,6 +18,10 @@ struct NotchView: View {
     @ObservedObject var brightness: BrightnessModel
     @ObservedObject var mixer: SoundMixerModel
     @ObservedObject var launcher: LauncherModel
+    @ObservedObject var developerWorkspace: DeveloperWorkspaceModel
+    @ObservedObject var developerTerminal: DeveloperTerminalModel
+    @ObservedObject var developerAgents: DeveloperAgentModel
+    @ObservedObject var developerServices: DeveloperServiceModel
     @ObservedObject var todos: TodoModel
     @ObservedObject var weather: WeatherModel
     @ObservedObject var prayer: PrayerTimesModel
@@ -82,6 +86,7 @@ struct NotchView: View {
             if route == .calendar { loadCalendarMonth() }
             if route == .home { weather.refresh(); prayer.refresh() }
             if route == .prayer { prayer.refresh() }
+            if route == .developer { developerWorkspace.refresh() }
             system.setStatsVisible(route == .system && state.isExpanded)
         }
         .onChange(of: state.interaction.phase) { _, _ in
@@ -187,7 +192,11 @@ struct NotchView: View {
                 }
                 pillActivities
                 if focus.phase == .idle && activePillDownload == nil {
-                    if let event = imminentEvent {
+                    if let session = activeDeveloperSession {
+                        Image(systemName: "terminal").foregroundStyle(session.state == .working ? configuration.accentColor : .orange)
+                        Text("\(session.provider.title) · \(developerStatusLabel(session))")
+                            .lineLimit(1)
+                    } else if let event = imminentEvent {
                         Image(systemName: "calendar.badge.clock").foregroundStyle(.cyan)
                         Text(event.title).lineLimit(1).frame(maxWidth: 145, alignment: .leading)
                         Text(event.start.formatted(.dateTime.hour().minute())).foregroundStyle(.white.opacity(0.55))
@@ -231,6 +240,10 @@ struct NotchView: View {
     }
 
     @ViewBuilder private var pillBadges: some View {
+        if music.isPlaying, let session = activeDeveloperSession {
+            Image(systemName: "terminal").foregroundStyle(session.state == .working ? configuration.accentColor : .orange)
+                .accessibilityLabel("\(session.provider.title), \(session.state.rawValue)")
+        }
         if presentation.hasNotificationBadge { Circle().fill(rose).frame(width: 6, height: 6) }
         if configuration.values.showStatus { Circle().fill(configuration.accentColor).frame(width: 5, height: 5) }
     }
@@ -242,6 +255,7 @@ struct NotchView: View {
         if music.isPlaying { values.append("Music: \(music.title), \(pillArtist)") }
         if focus.phase != .idle { values.append("Focus: \(focus.label)") }
         if let download = activePillDownload { values.append("Download: \(Int((download.progress * 100).rounded()))%") }
+        if let session = activeDeveloperSession { values.append("\(session.provider.title): \(session.state.rawValue)") }
         return values.joined(separator: ". ")
     }
 
@@ -254,14 +268,27 @@ struct NotchView: View {
     private var isQuietIdle: Bool {
         !music.isPlaying && focus.phase == .idle
             && !downloads.items.contains(where: { $0.state == .running })
-            && imminentEvent == nil && (activity.batteryPercent ?? 100) > 20
+            && activeDeveloperSession == nil && imminentEvent == nil && (activity.batteryPercent ?? 100) > 20
+    }
+    private var activeDeveloperSession: DeveloperAgentSession? {
+        developerAgents.sessions.first { $0.state == .waiting || $0.state == .failed }
+            ?? developerAgents.sessions.first { $0.state == .working }
+    }
+    private func developerStatusLabel(_ session: DeveloperAgentSession) -> String {
+        switch session.state {
+        case .waiting: "Perlu perhatian"
+        case .failed: "Gagal"
+        case .working: "Bekerja"
+        case .idle, .finished: "Selesai"
+        }
     }
     private var showsNobiOnly: Bool { ambient.isNobiIdle && ambient.phase != .preview && isQuietIdle }
 
     private func openLastRoute() {
         clock.refresh()
         state.open()
-        presentation.select(presentation.lastRoute)
+        presentation.select(activeDeveloperSession.map { $0.state == .waiting || $0.state == .failed } == true
+                            ? .developer : presentation.lastRoute)
     }
 
     private var peek: some View {
@@ -474,6 +501,30 @@ struct NotchView: View {
                 case .focus: focusContent
                 case .mixer: MixerPanel(mixer: mixer, capturePreview: capturePreview)
                 case .launcher: LauncherPanel(launcher: launcher)
+                case .developer: DeveloperHubPanel(
+                    workspace: developerWorkspace, launcher: launcher, agents: developerAgents,
+                    services: developerServices,
+                    openTerminal: {
+                        guard let project = developerWorkspace.selectedProject else { return }
+                        developerTerminal.start(in: project)
+                        presentation.select(.terminal)
+                    },
+                    openAgentTerminal: { session in
+                        var isDirectory: ObjCBool = false
+                        guard session.projectPath.hasPrefix("/"),
+                              FileManager.default.fileExists(atPath: session.projectPath, isDirectory: &isDirectory),
+                              isDirectory.boolValue else { return }
+                        let url = URL(fileURLWithPath: session.projectPath, isDirectory: true)
+                        developerWorkspace.add(url)
+                        if let project = developerWorkspace.selectedProject {
+                            developerTerminal.start(in: project)
+                            presentation.select(.terminal)
+                        }
+                    }
+                )
+                case .terminal: DeveloperTerminalPanel(workspace: developerWorkspace, terminal: developerTerminal) {
+                    presentation.select(.developer)
+                }
                 case .todos: TodoPanel(todos: todos)
                 case .calculator: CalculatorPanel()
                 case .more: moreContent
@@ -582,7 +633,7 @@ struct NotchView: View {
         }
     }
 
-    private let widgetCatalog = ["Calendar", "Music", "Timer", "Calculator", "Prayer", "Water", "Weather", "Battery",
+    private let widgetCatalog = ["Calendar", "Music", "Timer", "Developer", "Calculator", "Prayer", "Water", "Weather", "Battery",
                                  "Quick Notes", "Clipboard", "Keep Awake", "System", "Shelf", "Agenda",
                                  "Mixer", "To-do", "Launcher", "Downloads", "Quick Actions", "Camera & Mic"]
     private func label(for widget: String) -> String {
@@ -734,6 +785,13 @@ struct NotchView: View {
             homeCard(route: .launcher, title: "Launcher", symbol: "square.grid.2x2", tint: .blue) {
                 Text("\(launcher.apps.count)").font(.system(size: 27, weight: .bold))
                 Text("applications").font(.system(size: 10))
+            }
+        case "Developer":
+            homeCard(route: .developer, title: "Developer", symbol: "chevron.left.forwardslash.chevron.right", tint: configuration.accentColor) {
+                Text(developerWorkspace.selectedProject?.name ?? "Belum ada proyek")
+                    .font(.system(size: 15, weight: .bold)).lineLimit(2)
+                Text(activeDeveloperSession.map { "\($0.provider.title) · \(developerStatusLabel($0))" } ?? "Proyek, Git, terminal")
+                    .font(.system(size: 10)).lineLimit(2)
             }
         case "Calculator":
             homeCard(route: .calculator, title: "Calculator", symbol: "plus.forwardslash.minus", tint: .green) {

@@ -10,7 +10,7 @@ Paket ini berisi aplikasi native macOS 14 atau lebih baru. Xcode tidak diperluka
 
 ## Memperbarui
 
-Tutup aplikasi sebelum mengganti salinan di lokasi pemasangan yang sama. Preferensi tersimpan terpisah dan tidak dihapus saat mengganti bundle aplikasi. Build lokal memakai tanda tangan ad-hoc; macOS mungkin meminta ulang izin Automation setelah pembaruan. Jika login item tidak lagi bekerja, nonaktifkan lalu aktifkan kembali Launch at login dari salinan terpasang.
+Tutup aplikasi sebelum mengganti salinan di lokasi pemasangan yang sama. Preferensi tersimpan terpisah dan tidak dihapus saat mengganti bundle aplikasi. Build lokal secara default memakai tanda tangan ad-hoc; macOS mungkin meminta ulang izin Automation setelah pembaruan. Jika memiliki identitas Apple Development, set `NUBI_SIGN_IDENTITY` ke hash identitas tersebut saat menjalankan `Scripts/build-local.sh` atau `Scripts/package-local.sh`, lalu gunakan satu lokasi pemasangan tetap dan periksa ulang izin Calendar serta Automation. Jika login item tidak lagi bekerja, nonaktifkan lalu aktifkan kembali Launch at login dari salinan terpasang.
 
 Jika beralih dari versi bernama `Notch.app`, jalankan `Nubi.app` terlebih dahulu dan periksa fitur serta izin. Identitas `com.personal.notch` tetap dipakai agar preferensi lama terbaca. Setelah itu, tutup dan pindahkan salinan lama `Notch.app` ke Trash agar hanya satu aplikasi aktif; periksa ulang Launch at login.
 
@@ -26,7 +26,7 @@ File `.sha256` disediakan di samping ZIP. Dari folder yang berisi keduanya, jala
 shasum -a 256 -c Nubi-1.0.0-local.zip.sha256
 ```
 
-Checksum memeriksa keutuhan unduhan/salinan, bukan identitas penerbit. Paket ini ditandatangani ad-hoc untuk penggunaan lokal, belum menggunakan Developer ID dan belum dinotarisasi Apple. Paket ini bukan rilis publik yang telah melewati Gatekeeper; jangan menonaktifkan perlindungan macOS untuk menjalankannya. Jika macOS menolak salinan yang diperoleh dari internet, bangun dari sumber lokal dengan `Scripts/build-local.sh` atau gunakan build Developer ID yang dinotarisasi.
+Checksum memeriksa keutuhan unduhan/salinan, bukan identitas penerbit. Paket lokal memakai tanda tangan ad-hoc secara default atau Apple Development bila `NUBI_SIGN_IDENTITY` diberikan; keduanya belum merupakan tanda tangan Developer ID dan belum dinotarisasi Apple. Paket ini bukan rilis publik yang telah melewati Gatekeeper; jangan menonaktifkan perlindungan macOS untuk menjalankannya. Jika macOS menolak salinan yang diperoleh dari internet, bangun dari sumber lokal dengan `Scripts/build-local.sh` atau gunakan build Developer ID yang dinotarisasi.
 
 ## Menghapus
 

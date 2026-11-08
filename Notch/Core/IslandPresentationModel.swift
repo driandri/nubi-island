@@ -55,7 +55,7 @@ final class IslandClockModel: ObservableObject {
 }
 
 enum IslandRoute: String, CaseIterable, Identifiable {
-    case home = "Home", activities = "Live Activities", music = "Music", focus = "Timer", mixer = "Mixer", launcher = "Launcher", todos = "To-do", calculator = "Calculator", more = "More", calendar = "Calendar", downloads = "Downloads", clipboard = "Clipboard", shelf = "Shelf", prayer = "Sholat", water = "Water", notes = "Quick Notes", battery = "Battery", system = "System", actions = "Quick Actions", capture = "Camera & Mic"
+    case home = "Home", activities = "Live Activities", music = "Music", focus = "Timer", mixer = "Mixer", launcher = "Launcher", developer = "Developer", terminal = "Terminal", todos = "To-do", calculator = "Calculator", more = "More", calendar = "Calendar", downloads = "Downloads", clipboard = "Clipboard", shelf = "Shelf", prayer = "Sholat", water = "Water", notes = "Quick Notes", battery = "Battery", system = "System", actions = "Quick Actions", capture = "Camera & Mic"
     var id: String { rawValue }
     static var featureCatalog: [Self] { allCases.filter { $0 != .home && $0 != .more } }
     static let defaultTabs: [Self] = [.music, .focus, .calendar, .mixer, .launcher]
@@ -69,6 +69,8 @@ enum IslandRoute: String, CaseIterable, Identifiable {
         case .focus: "timer"
         case .mixer: "slider.horizontal.3"
         case .launcher: "square.grid.2x2"
+        case .developer: "chevron.left.forwardslash.chevron.right"
+        case .terminal: "terminal"
         case .todos: "checklist"
         case .calculator: "plus.forwardslash.minus"
         case .more: "ellipsis"

@@ -7,7 +7,7 @@ import XCTest
 final class WeatherAndWidgetsTests: XCTestCase {
     func testPrayerTimesUseRequestedDayAndLocationTimeZone() throws {
         let zone = try XCTUnwrap(TimeZone(identifier: "Asia/Jakarta"))
-        let values = ["Fajr": "04:06 (+07)", "Dhuhr": "11:43 (+07)", "Asr": "15:02 (+07)",
+        let values = ["Fajr": "04:06 (+07)", "Sunrise": "05:27 (+07)", "Dhuhr": "11:43 (+07)", "Asr": "15:02 (+07)",
                       "Maghrib": "17:52 (+07)", "Isha": "19:01 (+07)"]
         let times = PrayerTimeParser.times(values, day: "06-11-2026", timeZone: zone)
         XCTAssertEqual(times.map(\.name), ["Subuh", "Zuhur", "Asar", "Magrib", "Isya"])
@@ -15,6 +15,11 @@ final class WeatherAndWidgetsTests: XCTestCase {
         let formatter = DateFormatter()
         formatter.timeZone = zone; formatter.dateFormat = "dd-MM-yyyy HH:mm"
         XCTAssertEqual(times.first.map { formatter.string(from: $0.date) }, "06-11-2026 04:06")
+        let sunrise = try XCTUnwrap(PrayerTimeParser.sunrise(values, day: "06-11-2026", timeZone: zone))
+        XCTAssertEqual(sunrise.name, "Terbit")
+        XCTAssertEqual(sunrise.displayTime, "05:27")
+        XCTAssertEqual(formatter.string(from: sunrise.date), "06-11-2026 05:27")
+        XCTAssertNil(PrayerTimeParser.sunrise(["Sunrise": "invalid"], day: "06-11-2026", timeZone: zone))
         XCTAssertEqual(PrayerTimeParser.times(["Fajr": "invalid"], day: "06-11-2026", timeZone: zone).count, 0)
         let before = times[3].date.addingTimeInterval(-600)
         XCTAssertEqual(PrayerReminderSchedule.events(times: times, now: before, leadMinutes: 10)

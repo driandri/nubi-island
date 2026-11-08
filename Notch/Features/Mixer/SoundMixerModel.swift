@@ -110,6 +110,7 @@ private let mixerIOProc: AudioDeviceIOProc = { _, _, inputData, _, outputData, _
 
 @MainActor
 final class SoundMixerModel: ObservableObject {
+    private nonisolated static let routeQueue = DispatchQueue(label: "com.personal.notch.mixer.routes")
     @Published private(set) var outputDevices: [MixerDevice] = []
     @Published private(set) var inputDevices: [MixerDevice] = []
     @Published private(set) var selectedOutput: AudioObjectID = 0
@@ -123,6 +124,10 @@ final class SoundMixerModel: ObservableObject {
     private let defaults: UserDefaults
     private var gains: [String: Int]
     private var routes: [AudioObjectID: MixerRoute] = [:]
+    private var pendingRoutes: Set<AudioObjectID> = []
+    private var routeGeneration: UInt64 = 0
+    private var routeSetupInFlight = false
+    private var routeSetupStartedAt: Date?
     private var processToBundle: [AudioObjectID: String] = [:]
     private var failedProcesses: [AudioObjectID: String] = [:]
     private var timer: Timer?
@@ -183,7 +188,7 @@ final class SoundMixerModel: ObservableObject {
             inputGain = value
         }
     }
-    func stop() { timer?.invalidate(); timer = nil; stopRoutes() }
+    func stop() { timer?.invalidate(); timer = nil; sessionActive = false; stopRoutes() }
 
     func refresh() {
         let system = AudioObjectID(kAudioObjectSystemObject)
@@ -230,7 +235,7 @@ final class SoundMixerModel: ObservableObject {
                 sessionIssue = "Tidak ada buffer audio. Periksa izin System Audio Recording, lalu tekan Mulai lagi."
             }
             for id in routes.keys.filter({ !eligible.contains($0) }) {
-                routes.removeValue(forKey: id)?.stop()
+                if let route = routes.removeValue(forKey: id) { Self.routeQueue.async { route.stop() } }
             }
             failedProcesses = failedProcesses.filter { eligible.contains($0.key) }
             if !sessionVerified && routes.values.contains(where: \.hasAudibleSamples) { sessionVerified = true }
@@ -247,26 +252,36 @@ final class SoundMixerModel: ObservableObject {
                 return left == right ? lhs.value.name.localizedStandardCompare(rhs.value.name) == .orderedAscending : left < right
             }
             routeSetup: for (bundle, entry) in candidates where entry.available && sessionActive {
-                for id in entry.ids where routes[id] == nil && failedProcesses[id] == nil {
-                    if !sessionVerified && !routes.isEmpty { break routeSetup }
-                    do { routes[id] = try makeRoute(process: id, output: selectedOutput, gain: Float(gains[bundle] ?? 100) / 100) }
-                    catch {
-                        failedProcesses[id] = error.localizedDescription
-                        if (error as? MixerError)?.pauseSession == true {
-                            sessionActive = false
-                            sessionIssue = "Routing audio gagal. Periksa izin System Audio Recording, lalu tekan Mulai lagi."
-                            stopRoutes(); break routeSetup
+                for id in entry.ids where routes[id] == nil && pendingRoutes.contains(id) == false && failedProcesses[id] == nil {
+                    if routeSetupInFlight || (!sessionVerified && !routes.isEmpty) { break routeSetup }
+                    pendingRoutes.insert(id)
+                    routeSetupInFlight = true
+                    routeSetupStartedAt = Date()
+                    let generation = routeGeneration
+                    let output = selectedOutput
+                    let gain = Float(gains[bundle] ?? 100) / 100
+                    Self.routeQueue.async { [weak self] in
+                        let result = Result { try Self.makeRoute(process: id, output: output, gain: gain) }
+                        Task { @MainActor [weak self] in
+                            self?.finishRoute(result, process: id, output: output, generation: generation)
                         }
                     }
+                    break routeSetup
                 }
             }
             if !sessionActive { status = sessionIssue ?? "Pencampuran dijeda. Tekan Mulai untuk mencoba lagi." }
+            else if routeSetupInFlight {
+                status = routeSetupStartedAt.map { Date().timeIntervalSince($0) > 10 } == true
+                    ? "Core Audio belum merespons. Tutup dan buka Nubi untuk mencoba lagi."
+                    : "Menyiapkan rute audio. Nubi tetap dapat digunakan."
+            }
             else if !sessionVerified && !routes.isEmpty {
                 let name = routes.keys.compactMap { id in grouped.values.first(where: { $0.ids.contains(id) })?.name }.first ?? "aplikasi yang tampil"
                 status = "Memeriksa izin audio. Putar suara dari \(name)."
             }
             else if !failedProcesses.isEmpty { status = "Some apps unavailable: \(failedProcesses.values.first ?? "Check audio permission"). Retry after granting access." }
             else if routes.isEmpty && !grouped.isEmpty { status = "Allow System Audio Recording when macOS prompts, then retry Mixer." }
+            else if routes.isEmpty { status = "Mixer aktif. Putar audio di aplikasi untuk mulai mencampur." }
             else if !routes.isEmpty { status = "Mixing \(routes.count) audio process\(routes.count == 1 ? "" : "es")." }
         } else {
             stopRoutes()
@@ -281,8 +296,8 @@ final class SoundMixerModel: ObservableObject {
     }
 
     @available(macOS 14.2, *)
-    private func makeRoute(process: AudioObjectID, output: AudioObjectID, gain: Float) throws -> MixerRoute {
-        guard let outputUID = objectString(output, selector: kAudioDevicePropertyDeviceUID) else {
+    private nonisolated static func makeRoute(process: AudioObjectID, output: AudioObjectID, gain: Float) throws -> MixerRoute {
+        guard let outputUID = routeObjectString(output, selector: kAudioDevicePropertyDeviceUID) else {
             throw MixerError("Audio device is unavailable")
         }
         // Bind the tap to the chosen device so its sample rate matches the output stream.
@@ -294,7 +309,7 @@ final class SoundMixerModel: ObservableObject {
         guard AudioHardwareCreateProcessTap(description, &tap) == noErr else { throw MixerError("Could not create process tap") }
         var aggregate: AudioObjectID = 0
         do {
-            guard let tapUID = objectString(tap, selector: kAudioTapPropertyUID) else { throw MixerError("Audio tap is unavailable") }
+            guard let tapUID = routeObjectString(tap, selector: kAudioTapPropertyUID) else { throw MixerError("Audio tap is unavailable") }
             let config: [String: Any] = [
                 kAudioAggregateDeviceNameKey: "Nubi Mixer \(process)",
                 kAudioAggregateDeviceUIDKey: "com.personal.notch.mixer.\(UUID().uuidString)",
@@ -327,13 +342,50 @@ final class SoundMixerModel: ObservableObject {
             throw error
         }
     }
-    private func stopRoutes() { for route in routes.values { route.stop() }; routes.removeAll() }
-    private func streamFormat(_ device: AudioObjectID, scope: AudioObjectPropertyScope) -> AudioStreamBasicDescription? {
+    private func finishRoute(_ result: Result<MixerRoute, Error>, process: AudioObjectID, output: AudioObjectID, generation: UInt64) {
+        routeSetupInFlight = false
+        routeSetupStartedAt = nil
+        pendingRoutes.remove(process)
+        guard generation == routeGeneration, enabled, sessionActive, output == selectedOutput,
+              processToBundle[process] != nil else {
+            if case .success(let route) = result { Self.routeQueue.async { route.stop() } }
+            refresh()
+            return
+        }
+        switch result {
+        case .success(let route):
+            let bundle = processToBundle[process]!
+            route.setGain(Float(gains[bundle] ?? 100) / 100)
+            routes[process] = route
+        case .failure(let error):
+            failedProcesses[process] = error.localizedDescription
+            if (error as? MixerError)?.pauseSession == true {
+                sessionActive = false
+                sessionIssue = "Routing audio gagal. Periksa izin System Audio Recording, lalu tekan Mulai lagi."
+                stopRoutes()
+            }
+        }
+        refresh()
+    }
+    private func stopRoutes() {
+        routeGeneration &+= 1
+        pendingRoutes.removeAll()
+        for route in routes.values { Self.routeQueue.async { route.stop() } }
+        routes.removeAll()
+    }
+    private nonisolated static func streamFormat(_ device: AudioObjectID, scope: AudioObjectPropertyScope) -> AudioStreamBasicDescription? {
         var address = AudioObjectPropertyAddress(mSelector: kAudioDevicePropertyStreamFormat, mScope: scope, mElement: kAudioObjectPropertyElementMain)
         var format = AudioStreamBasicDescription()
         var size = UInt32(MemoryLayout<AudioStreamBasicDescription>.size)
         guard AudioObjectGetPropertyData(device, &address, 0, nil, &size, &format) == noErr else { return nil }
         return format
+    }
+    private nonisolated static func routeObjectString(_ id: AudioObjectID, selector: AudioObjectPropertySelector) -> String? {
+        var address = AudioObjectPropertyAddress(mSelector: selector, mScope: kAudioObjectPropertyScopeGlobal, mElement: kAudioObjectPropertyElementMain)
+        var value: Unmanaged<CFString>?
+        var size = UInt32(MemoryLayout<Unmanaged<CFString>?>.size)
+        guard AudioObjectGetPropertyData(id, &address, 0, nil, &size, &value) == noErr else { return nil }
+        return value?.takeRetainedValue() as String?
     }
     private func setDefaultDevice(_ id: AudioObjectID, selector: AudioObjectPropertySelector) {
         guard id != 0 else { return }
