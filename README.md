@@ -1,73 +1,95 @@
 # Nubi
 
-A small native macOS menu-bar utility that places a virtual notch at the top center of an external display. SwiftUI provides the interface; a transparent, nonactivating AppKit `NSPanel` hosts it. SwiftTerm provides the optional embedded terminal. There is no Electron, webview, backend, or telemetry.
+Nubi adalah aplikasi native macOS yang menempatkan panel kecil di bagian atas layar. Panel ini merangkum musik, pengingat, jadwal, berkas, dan alat kerja tanpa membuka jendela besar. Nubi berjalan dari menu bar tanpa ikon Dock. Antarmukanya dibuat dengan SwiftUI dan AppKit; Terminal di dalam panel memakai SwiftTerm.
 
-## Build and run
+Nubi dapat dipakai di **macOS 14 atau lebih baru**. Sebagian fitur memerlukan izin macOS, akun layanan, atau versi sistem yang lebih baru. Izin diminta saat fiturnya digunakan, sesuai penjelasan di bawah.
 
-Requires macOS 14 or later and Xcode with the macOS SDK. Developed and built on Apple Silicon with Xcode's Swift 6.3.3 toolchain and tested for launch on macOS 26.4.1.
+## Mulai menggunakan
 
-Open `Notch.xcodeproj`, select the **Notch** scheme and **My Mac**, then Run. If Xcode requests signing, choose your personal development team under Signing & Capabilities. The app has no Dock icon: use its capsule-shaped menu-bar item for Settings, Pin / Unpin, Collapse, and Quit.
+1. Pasang `Nubi.app` ke `~/Applications` atau `/Applications`, lalu buka dari lokasi tersebut. Panduan untuk paket ZIP dan pembaruan ada di [Docs/INSTALL.md](Docs/INSTALL.md).
+2. Klik pill Nubi di bagian atas layar atau ikon Nubi di menu bar. Arahkan pointer ke pill untuk membuka panel sementara; klik pin di kepala panel agar tetap terbuka.
+3. Buka **Settings** dari menu bar atau ikon roda gigi. Pilih kartu yang ingin tampil di **Home**, atur tab di **Navigasi**, dan pilih layar serta posisi panel di **Layar**.
+4. Atur fitur yang ingin dipakai. Misalnya, pilih kota di **Settings → Home** untuk Cuaca dan Sholat, atau buka Calendar lalu tekan **Connect Calendar**. Deteksi musik otomatis dan pengingat sholat aktif secara bawaan; fitur yang memerlukan izin tambahan tetap mengikuti pilihan dan dialog macOS.
 
-For a local build without a development team, use the ad-hoc signed build script:
+Tab bawah selalu menyediakan **Home** dan **Fitur**. Tab di antaranya dapat diatur dari Settings → Navigasi; Fitur membuka daftar seluruh panel. Saat tertutup, pill dapat menampilkan musik, timer, unduhan, dan pengingat yang sedang aktif. Klik kanan pill untuk perintah cepat; menu bar tetap tersedia saat panel tertutup.
+
+## Fitur
+
+### Musik dan waktu
+
+- **Music.** Deteksi otomatis mengikuti Music, Spotify, atau tab video YouTube di Chrome yang sedang diputar. Panel menampilkan judul, artis, sampul, progres, volume, serta tombol sebelumnya, putar/jeda, dan berikutnya. Nubi tidak membuka player atau memulai lagu sendiri. Jika beberapa sumber aktif, sumber yang dipilih tetap dipakai sampai berhenti; tab YouTube yang sedang diputar dapat mengambil alih saat Chrome berada di depan. Mode manual dan Demo tersedia di Settings → Music.
+- **Lirik.** Panel Music menampilkan cuplikan dan tampilan lirik yang dapat digulir. Nubi membaca lirik dari Music bila tersedia, lalu dapat mencari lirik yang belum ada melalui LRCLIB. Pencarian LRCLIB dapat dimatikan di Settings.
+- **Timer.** Mode Standard menyediakan pilihan 1, 2, 3, 5, 10, atau 25 menit, serta durasi khusus 1–180 menit. Mode Pomodoro memakai 25 menit fokus, 5 menit istirahat, dan istirahat panjang 15 menit setelah empat sesi fokus. Tahap berikutnya dimulai saat Anda menekannya. Timer dapat dijeda, dilanjutkan, dan direset; sesi tidak bertahan setelah Nubi ditutup.
+- **Live Activities.** Satu panel merangkum musik, timer, dan unduhan yang sedang berjalan. Pill tertutup juga dapat menampilkan beberapa aktivitas tersebut bersama-sama.
+
+### Jadwal dan pengingat
+
+- **Calendar.** Setelah **Connect Calendar**, Nubi menampilkan kalender bulanan, agenda hari terpilih, daftar acara mendatang, dan pratinjau acara berikutnya di Home. Tombol **Open Calendar** membuka aplikasi Calendar macOS. Nubi membaca acara melalui EventKit dan tidak membuat atau mengubahnya.
+- **Sholat.** Gunakan kota yang dipilih di Settings → Home atau lokasi yang Anda izinkan. Panel menampilkan tanggal Masehi dan Hijriah, waktu sholat berikutnya, hitung mundur, lintasan matahari dari Terbit sampai Magrib, dan enam kartu waktu yang dapat dipilih. Perhitungan AlAdhan memakai metode Kemenag; jadwal masjid setempat dapat berbeda. Pengingat di island dapat diatur 5, 10, atau 30 menit sebelum waktu sholat dan bekerja selama Nubi berjalan.
+- **Cuaca.** Masukkan kota atau pilih **Use current location** di Settings → Home. Prakiraan memakai Open-Meteo; Nubi meminta izin lokasi hanya ketika Anda memilih penggunaan lokasi saat ini.
+- **Water.** Catat minum, tentukan target harian, ukuran sekali minum, dan interval, lalu lihat grafik hari ini. Pengingat perlu diaktifkan dan muncul antara 08.00–21.00 selama Nubi berjalan; pengingat berhenti ketika target tercapai. Catatan tujuh hari terakhir disimpan secara lokal.
+
+### Catatan dan alat cepat
+
+- **To-do dan Quick Notes.** To-do dapat ditambah, ditandai selesai, atau dihapus. Quick Notes menyimpan satu catatan teks. Keduanya tersimpan di Mac ini.
+- **Launcher dan Calculator.** Launcher mencari aplikasi di folder Applications standar dan membuka aplikasi yang dipilih. Calculator mendukung hitung desimal, persen, perubahan tanda, hapus, dan masukan keyboard.
+- **Quick Actions.** Cari perintah untuk membuka panel, mengambil tangkapan layar, atau menempatkan jendela ke zona layar. `⌘K` membuka daftar perintah saat panel aktif. Opsi **Window Snapping** di Settings → Integrasi memungkinkan jendela diseret ke zona di tepi atas; penempatan jendela memerlukan izin Accessibility.
+- **Keep Awake.** Kartu Home ini mencegah layar tidur selama aktif, lalu melepas pencegahan ketika dimatikan atau Nubi ditutup.
+
+### Berkas, perangkat, dan sistem
+
+- **Shelf.** Seret hingga delapan file atau folder lokal ke Nubi, atau pilih lewat pemilih berkas. Klik nama untuk menemukannya di Finder, seret referensinya keluar, atau hapus dari daftar. Shelf hanya menyimpan referensi selama sesi; menghapus referensi tidak menghapus file asli.
+- **Downloads.** Masukkan URL HTTPS dan pilih lokasi simpan untuk tiap unduhan. Panel menyediakan progres, batal, coba lagi, dan **Reveal in Finder**. Unduhan aktif dibatalkan saat Nubi ditutup. URL HTTP atau yang memuat kredensial ditolak.
+- **Clipboard.** Riwayat bersifat opsional, memuat hingga 30 entri teks, tautan, atau warna, dan dapat dicari serta dipin. Secara bawaan riwayat hanya ada selama sesi; **Simpan riwayat di Mac ini** menyimpannya untuk peluncuran berikutnya. Aplikasi tertentu dapat dikecualikan. Tempel ke aplikasi depan memerlukan Accessibility; tanpa izin itu, entri dapat disalin lagi.
+- **System, Battery, dan HUD.** Panel menampilkan informasi perangkat yang tersedia. Perubahan volume, mute, baterai, atau brightness dapat muncul sebentar di island bila perangkat mendukungnya. HUD macOS tetap tampil; brightness pada sebagian monitor eksternal memang tidak tersedia.
+- **Sound Mixer.** Pilih perangkat input/output dan ubah volume sistem bila perangkat mendukung. Untuk volume per aplikasi, aktifkan **Mix apps** lalu tekan **Mulai**. Fitur ini memerlukan macOS 14.2 atau lebih baru dan izin System Audio Recording. Sesi routing tidak mulai otomatis saat Nubi dibuka, dan audio yang diproses tidak disimpan.
+- **Camera & Mic dan tangkapan layar.** Panel menyediakan pratinjau kamera dan level mikrofon; tangkapan layar dapat ditambahkan ke Shelf. Izin kamera, mikrofon, atau Screen Recording diminta saat tindakan terkait dipilih. Pratinjau tidak menyimpan rekaman.
+- **Notifications.** Jika diaktifkan dan Accessibility diizinkan, Nubi dapat menampilkan ulang banner yang terlihat dari aplikasi atau situs yang Anda pilih. Banner asli macOS tetap ada. Nubi tidak membaca riwayat Notification Center, tidak menyimpan isi pesan, dan tidak mengirim balasan.
+- **Layar kunci.** Opsi di Settings → Layar dapat menampilkan pill, kartu musik, dan kontrol putar saat Mac terkunci. Fitur ini memakai API WindowServer privat, mati secara bawaan, dan mungkin berubah setelah pembaruan macOS.
+
+### Developer
+
+- **Proyek dan Git.** Tambahkan folder proyek secara eksplisit. Nubi membaca nama branch dan jumlah perubahan staged, belum staged, serta file baru, lalu dapat membuka folder di Finder atau editor pilihan. Nubi tidak mengubah repositori saat membaca status.
+- **Terminal.** Tekan kontrol Terminal pada proyek terpilih untuk memulai shell lokal di folder itu. Sesi tetap ada saat panel ditutup sementara dan berakhir ketika Anda menutup sesi atau Nubi. Perintah berjalan sesuai yang Anda ketik.
+- **Aktivitas agen.** Koneksi Claude Code, Codex CLI, dan Gemini CLI bersifat opsional. Setelah dihubungkan dan proses kepercayaan CLI disetujui, panel dapat menampilkan sesi dan tindakan terakhir. Catatan lokal berisi status, nama alat, dan paling jauh nama file; Nubi tidak menyimpan prompt atau keluaran alat. **Putuskan** menghapus perintah hook milik Nubi dari pengaturan penyedia.
+- **Layanan GitHub dan Vercel.** Buka **Layanan** dari Developer untuk menghubungkan keduanya secara terpisah. GitHub memakai remote `origin` dan branch dari proyek terpilih untuk membaca pull request serta Actions. Vercel memakai `.vercel/project.json` untuk membaca deployment. Token disimpan di Keychain macOS dan dihapus per layanan melalui **Putuskan**. Tidak ada akun yang terhubung secara bawaan; permintaan jaringan hanya dibuat saat panel dibuka, proyek berubah, atau Anda menekan **Perbarui**.
+
+## Izin dan data
+
+| Izin atau koneksi | Kapan diperlukan | Penggunaan |
+| --- | --- | --- |
+| Automation | Saat mengakses player yang berjalan | Membaca status dan mengirim perintah Music/Spotify/Chrome. Untuk YouTube di Chrome, aktifkan **View → Developer → Allow JavaScript from Apple Events**. |
+| Calendar penuh | Saat menekan **Connect Calendar** | Membaca agenda melalui EventKit. Dapat dicabut di System Settings → Privacy & Security → Calendars. |
+| Location | Saat memilih **Use current location** | Menentukan kota untuk Cuaca dan Sholat. Memasukkan kota manual tidak memerlukan izin ini. |
+| Accessibility | Saat memakai tempel, mirror banner, atau Window Snapping | Mengakses elemen sistem yang diperlukan oleh fitur tersebut. |
+| System Audio Recording | Saat memulai Mixer per aplikasi | Merutekan audio selama sesi Mixer. |
+| Screen Recording, Camera, Microphone | Saat memilih tindakan terkait | Tangkapan layar atau pratinjau perangkat. |
+| Login Items | Saat mengaktifkan **Launch at login** | Membuka Nubi saat masuk ke macOS. |
+
+Preferensi disimpan di UserDefaults dengan identitas `com.personal.notch`. To-do, Quick Notes, dan riwayat Clipboard yang Anda pilih untuk disimpan berada di penyimpanan lokal; token GitHub/Vercel berada di Keychain. Nubi tidak memiliki backend atau telemetri sendiri. Fitur tertentu menghubungi layanan langsung: Open-Meteo untuk cuaca, AlAdhan untuk jadwal sholat, LRCLIB untuk lirik opsional, GitHub/Vercel jika dihubungkan, dan URL unduhan yang Anda masukkan. Sampul Spotify dapat dimuat dari CDN gambar Spotify.
+
+## Jika fitur belum bekerja
+
+- **Musik tidak terdeteksi:** putar lagu di aplikasi yang didukung, periksa izin di System Settings → Privacy & Security → Automation, lalu tekan **Retry detection** di Settings → Music. Untuk YouTube, periksa juga pengaturan JavaScript from Apple Events di Chrome.
+- **Calendar kosong:** tekan **Connect Calendar** dan periksa izin Calendar untuk Nubi. Agenda hanya tampil setelah akses penuh diberikan.
+- **Cuaca atau Sholat kosong:** tentukan kota di Settings → Home atau gunakan lokasi saat ini, lalu perbarui. Jadwal Sholat memakai kota yang sama dengan Cuaca.
+- **Mixer tidak merutekan audio:** periksa izin System Audio Recording dan perangkat output, lalu tekan **Mulai** lagi. Perangkat atau format audio yang tidak didukung dapat membuat Nubi menghentikan routing.
+
+## Build dan pengujian
+
+Untuk mengembangkan aplikasi, buka `Notch.xcodeproj`, pilih skema **Notch** dan target **My Mac**, lalu jalankan. Skrip berikut membuat build Release lokal bertanda tangan ad-hoc secara bawaan dan memverifikasi bundle:
 
 ```sh
 ./Scripts/build-local.sh
 open build/Build/Products/Release/Nubi.app
 ```
 
-Quit the development copy before running a different build. For regular use, copy `Nubi.app` from the build directory into `~/Applications` or `/Applications`, launch that copy, then enable Launch at login in Settings. Login registration is handled by Apple's `SMAppService`; macOS may require approval in System Settings → General → Login Items. The script signs the complete bundle with its `com.personal.notch` identifier and the Apple Events entitlement, then verifies the signature. Do not use `CODE_SIGNING_ALLOWED=NO` for a runnable music-integration build: a linker-only signature does not bind the privacy usage text to the app. This is an ad-hoc personal build, not Developer ID signed or notarized for distribution. macOS may request Automation approval again after rebuilding; a development signing identity and stable installation path are preferable for regular use.
+Jika memiliki identitas Apple Development, set `NUBI_SIGN_IDENTITY` ke hash identitas saat menjalankan skrip. Gunakan satu lokasi pemasangan tetap agar izin macOS lebih stabil. Build Apple Development maupun ad-hoc ditujukan untuk penggunaan lokal; paket ini belum ditandatangani dengan Developer ID atau dinotarisasi untuk distribusi publik.
 
-If you have an Apple Development signing identity, set `NUBI_SIGN_IDENTITY` to its identity hash when running `Scripts/build-local.sh` or `Scripts/package-local.sh`. The script defaults to ad-hoc signing when this variable is unset. Keep the development-signed app in one stable Applications path and verify Calendar and Automation consent after replacing a previous ad-hoc build. An Apple Development signature is for local testing, not public distribution.
-
-The Developer terminal uses SwiftTerm's build plug-in. Xcode may ask you to review and trust that plug-in before a CLI build. After reviewing its source, set `NUBI_SKIP_PACKAGE_PLUGIN_VALIDATION=1` for an unattended local build; the script keeps Xcode's plug-in validation on by default.
-
-## Package for personal use
-
-```sh
-./Scripts/package-local.sh
-```
-
-Creates `build/packages/Nubi-1.0.0-local.zip` and its SHA-256 checksum. The script builds and verifies the signed bundle, packages installation instructions and limitations, then extracts the ZIP and verifies its signature and executable before publishing the archive. See [installation instructions](Docs/INSTALL.md). With the default settings this is an ad-hoc local build, not a notarized public release.
-
-## Use
-
-- **Timer:** Standard offers 1/2/3/5/10/25-minute presets and a custom 1–180-minute duration. Pomodoro alternates 25-minute focus, 5-minute breaks, and a 15-minute break after four focus sessions; each next stage starts only when clicked. Pause, resume, and reset are available while running. The collapsed pill keeps the countdown visible alongside music. Sessions include sleep time, stay in memory, and do not send system notifications.
-- Hover over the pill to expand; leave it to collapse after the configured delay.
-- The collapsed island shows the current date and time while idle. During activity it shows playing music with an animated waveform, an active timer, and a running download together. Opening it starts on Home, with Calendar, Music, and Timer cards plus shortcuts to Live Activities, Downloads, Clipboard, and File Shelf. Use **Customize** or Settings to show, hide, and reorder Home cards. The bottom bar opens Home, Music, Timer, Mixer, Launcher, and More; More contains the remaining views. New notifications and supported system HUD changes appear briefly when the island is not pinned; pinning keeps the selected view visible.
-- **Calendar:** open its Home card or bottom-bar view and choose Connect Calendar to request EventKit access. The panel shows a month grid, events for the selected day, and a scrollable upcoming list; Home previews the next event. Open Calendar launches the macOS app. Events stay in memory and are cleared when Nubi quits; Nubi does not edit calendars. macOS grants full Calendar access for reading events, which can be revoked in System Settings → Privacy & Security → Calendars.
-- **Sholat:** choose a city or enable location in Home settings. The Sholat panel shows the next prayer, a countdown, the sunrise-to-Maghrib arc, and a selectable daily schedule with sunrise and all five prayer times from AlAdhan's Kemenag calculation. Island reminders appear before and at prayer time while Nubi is running; the lead time can be set to 5, 10, or 30 minutes. Local mosque times may differ.
-- **Water reminder:** add Minum to Home or open Water from More. Record each drink, set a daily goal, serving size, and interval, and inspect today's chart. Reminders are off until enabled, appear in the island from 08.00 to 21.00 while Nubi runs, and stop after the goal is reached. The last seven days of entries are stored locally in UserDefaults.
-- Click the collapsed pill to expand and pin. Click the header's pin control to pin/unpin. Unpinning while hovered leaves the panel expanded until the pointer leaves.
-- Right-click for Pin, Settings, and Collapse. The menu-bar item remains available even when the panel is collapsed. The standard Settings menu and ⌘, (when Nubi is active) open the same Settings window.
-- Customize collapsed width/height, corner radius, accent, panel glow, waveform animation, Home cards, animation duration, hover edge inset, and expand/collapse delays.
-- **Sound Mixer:** choose the default output and input device, adjust system volume and input gain where supported, and view applications using audio. Enable **Mix apps** and press **Mulai** to begin routing applications through Nubi for this session. macOS 14.2 or later and System Audio Recording permission are required for per-app gain; macOS asks when the first route starts. A saved mixer preference never starts capture on app launch. Nubi checks one audio source first and pauses routing if no usable audio arrives; press **Mulai** again after checking permission. Output-device changes also pause routing. Captured audio is processed in memory, never saved. The mixer is off by default; macOS 14.0–14.1 still supports device and system-volume controls.
-- **Launcher, To-do, Calculator:** Launcher searches applications in `/Applications`, `/System/Applications`, and `~/Applications`. To-do items are saved locally in Application Support and support add, complete, and delete. Calculator supports decimal arithmetic, percent, sign, clear, backspace, and keyboard input. These text controls take focus only after opening their panel.
-- **Developer:** add a project folder explicitly to see its Git branch and staged, unstaged, and untracked counts. Open that folder in Finder or a selected editor. The Terminal route starts a local shell in the selected project only when you press its start control; closing the session terminates the shell. Agent activity for Claude Code, Codex CLI, and Gemini CLI is optional: connect a provider from the Developer panel, then approve any trust review required by that CLI. Click an agent session to add its available project folder and open a terminal there. Nubi stores local session state, tool names, and file basenames, without saving prompts or tool output. Disconnect removes Nubi's hook commands from that provider's settings.
-- **Developer services:** open **Layanan** in Developer to connect GitHub and Vercel separately. GitHub uses the selected repository's `origin` remote and branch; a fine-grained token needs Pull requests and Actions read permission for that repository. Vercel uses the selected folder's `.vercel/project.json` and a token for its account or team. Tokens stay in the macOS Keychain. Nubi makes GET requests only when the Developer panel opens, the project changes, or you press **Perbarui**. **Putuskan** deletes that service's Keychain token. No account is connected by default.
-- Select a monitor or follow the primary display. A disconnected selection falls back to the primary display and reconnects when available.
-- Enable **Place below the menu bar** if the top-center overlay covers menu titles. **Show in fullscreen spaces** is optional and defaults off.
-- Drag up to eight file URLs onto the notch, or use the + button / “Add files…” context-menu command to choose files and folders through the native macOS picker. The shelf pins open only when a valid local file is accepted. Duplicate paths do not consume extra slots; unavailable files and overflow are reported. Click a filename to reveal it in Finder, drag it elsewhere, or remove its reference with ×. Use the context menu’s “Clear file shelf” to remove all references. Quitting clears the shelf; files are never copied, moved, or deleted by shelf removal.
-- **Downloads:** choose New download from the menu-bar item, island, or context menu. Enter an HTTPS URL and choose a save location for each download. The island shows progress, cancel, retry, completion, and Reveal in Finder. Active downloads are cancelled when Nubi quits. HTTP URLs, credential-bearing URLs, and redirects away from HTTPS are rejected.
-- **Clipboard:** enable history in Settings. Nubi keeps up to 30 recent text, web link, or color entries, with search and pinning; it skips file and concealed/transient pasteboard types. History stays in memory unless **Simpan riwayat di Mac ini** is enabled. You can exclude selected apps from capture. Text can be pasted into the frontmost app when Accessibility access is granted, or copied again otherwise. Links open in the default app, and colors copy their HEX value. Clear history in Settings or the panel to remove saved entries. Quitting clears session-only history; saved history loads on the next launch.
-- **Lock screen:** optionally show Nubi and the current track while the Mac is locked from Settings → Layar kunci. This feature uses private macOS WindowServer APIs, is off by default, and may stop working after a macOS update. The pill, music card, and playback controls were confirmed by the user in one locked-session check on the development Mac; other macOS versions and hardware remain untested.
-- **Notifications:** opt in under Settings, grant Accessibility access through macOS, and add the application bundles whose visible banners may be mirrored. Nubi shows a short-lived card for a recognized banner and opens its source when clicked. It does not read Notification Center history, send replies, save message content, or hide the original macOS banner. Unrecognized banners are ignored.
-- **System HUD:** output-volume changes appear briefly in the island. Brightness appears only when the selected display reports a value through the public IOKit display interface; unsupported external displays show no brightness card. The macOS HUD remains visible.
-- **Automatic music detection is on by default.** Play a song in Music, Spotify, or a YouTube watch tab in Chrome and allow macOS Automation access when requested. For YouTube, enable **Chrome → View → Developer → Allow JavaScript from Apple Events**. Nubi checks Chrome tab URLs and reads playback only on YouTube watch tabs. It follows a playing source within roughly two seconds, even while collapsed. It never launches a player or starts playback by itself.
-- If several sources play, the currently selected source stays active; a playing YouTube tab takes over when Chrome is in front. When the selected source pauses, another playing source takes over. With no running supported app, detection waits for a launch event instead of polling.
-- Open Music to see larger artwork, title, artist, current lyric lines, progress, and previous/play-pause/next controls. While collapsed, lightweight state probes keep playback detection active; full metadata refreshes on player/state changes, player process restarts, expansion, and approximately every 15 seconds while collapsed. While expanded, metadata updates about every two seconds in Auto mode.
-- Automatic detection is remembered between launches. Disable it in **Settings → Music** to use manual selection or Demo mode. If access was denied, allow it in System Settings → Privacy & Security → Automation and click **Retry detection**; denied players are not repeatedly prompted. A pending permission dialog for one player does not stop the other connected player.
-- Music artwork comes from the player. Spotify artwork optionally loads from its HTTPS image CDN while visible; metadata and playback do not require a Nubi backend or Spotify Web API account. Missing artwork falls back to a symbol.
-- Music previews the current lyric lines. Press **Lyrics** to expand the scrollable view. Nubi first reads Apple Music track lyrics when available, then looks up missing lyrics from [LRCLIB](https://lrclib.net/docs) using the song title, artist, and duration. This lookup can be disabled in Settings. Synced lyrics highlight the current line; catalog misses show an explicit message.
-- The Music footer shows output volume/mute state when the device exposes software volume. It follows output-device changes using Core Audio notifications.
-
-Preferences are stored locally under the `com.personal.notch` UserDefaults domain, including Home layout and per-app mixer gains. To-do items are stored separately in Application Support. Reset to defaults resets appearance, Home layout, interaction, and display choices; it intentionally preserves the independently managed login-item registration and mixer gains.
-
-## Validation
+Terminal memakai build plug-in SwiftTerm. Xcode mungkin meminta peninjauan plug-in sebelum build CLI. Setelah meninjau sumbernya, `NUBI_SKIP_PACKAGE_PLUGIN_VALIDATION=1` dapat dipakai untuk build tanpa dialog validasi. Untuk membuat ZIP lokal beserta checksum dan petunjuk pemasangan, jalankan `./Scripts/package-local.sh`.
 
 ```sh
 swift test
 ```
 
-The Swift package is a test harness for the actual models used by the Xcode app. It does not replace the app project. Tests cover interaction, configuration migration, geometry, media, timer transitions, local to-do persistence, launcher discovery, calculator operations, mixer gain/format checks, Git status, and agent event ordering. Tests do not request Automation or System Audio Recording permission or change real playback.
-
-See [validation notes](Docs/VALIDATION.md) for executed checks and the remaining hardware/UI checks. See [architecture](Docs/ARCHITECTURE.md) and [roadmap and limitations](Docs/ROADMAP.md).
+Tes Swift Package memeriksa logika model dan tidak menggantikan pengujian aplikasi serta izin macOS. Lihat [catatan validasi](Docs/VALIDATION.md) untuk hasil yang sudah diuji dan [batasan serta rencana](Docs/ROADMAP.md) untuk pekerjaan yang masih tersisa. Detail pemasangan dan pembaruan ada di [Docs/INSTALL.md](Docs/INSTALL.md); struktur kode ada di [Docs/ARCHITECTURE.md](Docs/ARCHITECTURE.md).
